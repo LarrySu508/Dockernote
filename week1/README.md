@@ -140,5 +140,6 @@ root@ccea9d4e9655:/# apt-get install iputils-ping
 #docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs httpd
 ```
 開啟瀏覽器輸入127.0.0.1:8080，本地的8080埠號會出現index.html的內容。    
-輸入127.0.0.1:8080/hi.htm，會出現自己設的hi字樣。     
-如果要即時增加也是可以的，在mydata裡下echo "hello" > hello.htm，開啟瀏覽器輸入127.0.0.1:8080/hello.htm，就會印出hello。
+輸入127.0.0.1:8080/hi.htm，會出現自己設的hi字樣。    
+如果要即時增加也是可以的，在mydata裡下echo "hello" > hello.htm，   
+開啟瀏覽器輸入127.0.0.1:8080/hello.htm，就會印出hello。
