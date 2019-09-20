@@ -131,4 +131,14 @@ root@ccea9d4e9655:/# apt-get install iputils-ping
 //這樣ping就可執行
 ```
 如果是ifconfig找不到，可以下apt install net-tools。
-### 7.
+### 7.Docker httpd印出自己的網頁
+```
+#docker pull httpd  //先拉image
+#cd /mydata         //到mydata
+#echo "this is a index webpage" > index.html //這是預設的所以一定要有
+#echo "hi" > hi.htm   //個人設定的
+#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs httpd
+```
+開啟瀏覽器輸入127.0.0.1:8080，本地的8080埠號會出現index.html的內容。    
+輸入127.0.0.1:8080/hi.htm，會出現自己設的hi字樣。     
+如果要即時增加也是可以的，在mydata裡下echo "hello" > hello.htm，開啟瀏覽器輸入127.0.0.1:8080/hello.htm，就會印出hello。
