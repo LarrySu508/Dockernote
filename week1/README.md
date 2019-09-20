@@ -66,3 +66,69 @@ docker rmi id(name)
 ```
 docker inspect 你Docker的ID或是你給容器的名稱
 ```
+## 4.其他另類操作
+### 1.啟動可以附加指令
+```
+[root@lacalhost user]#docker run -it -d --name test1 chusiang/takaojs1607 /bin/sh -c "while true; do echo "hi"; sleep 1; done"
+[root@lacalhost user]#docker logs 338  //338為開啟機子代號。
+hi
+hi
+hi
+hi   //因為第一個指令有印hi的規則，所以會看到這些hi。
+```
+### 2.機子開啟後，如果做離開機子的動作，這機子就一起刪掉
+```
+[root@lacalhost user]#docker run -it --name test1 --rm chusiang/takaojs1607 /bin/sh
+```
+### 3.Docker機子與虛擬機共用資料夾
+#### 1.建一個檔案和資料夾在根目錄上
+```
+[root@lacalhost /]#mkdir /mydata
+[root@lacalhost /]#echo "hello world" > hello.txt
+[root@lacalhost /]#docker run -it -v /mydata:/data chusiang/takaojs1607 /bin/sh
+root@f63658996341:/# cd data
+root@f63658996341:/data# ls
+hi.txt
+root@f63658996341:/data# cat hi.txt 
+hello
+root@f63658996341:/data# touch {a..d}
+root@f63658996341:/data# ls
+a b c d hi.txt
+```
+```
+//另開一個terminal
+[root@lacalhost user]#cd /mydata
+[root@lacalhost mydata]#echo "hello" > hi.txt
+[root@lacalhost mydata]#ls
+hi.txt
+[root@lacalhost mydata]#ls
+a b c d hi.txt
+```
+### 4.當docker的機子在運行指令時，要在另一個終端機執行指令
+```
+//terminal1
+root@f63658996341:/data# /bin/bash -c "while true; do echo "hi"; sleep 3; done"
+hi
+hi
+hi
+hi
+```
+```
+//terminal2
+[root@lacalhost mydata]#docker exec -it f63 bash
+root@f63658996341:/#
+```
+### 5.快速離開容器
+按ctrl+p+q，就可快速離開容器。
+### 6.當下載的image很小時，執行容器時發生指令查不到
+可以直接查說像ping command not found，我用ubuntu的64.2M容器。    
+```
+[root@lacalhost /]#docker run -it ubuntu bash
+root@ccea9d4e9655:/# ping 8.8.8.8
+bash: ping: command not found
+root@ccea9d4e9655:/# apt-get updata
+root@ccea9d4e9655:/# apt-get install iputils-ping
+//這樣ping就可執行
+```
+如果是ifconfig找不到，可以下apt install net-tools。
+### 7.
