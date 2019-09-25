@@ -77,6 +77,38 @@
 #docker exec -it mydb bash      \\進入mydb
 #mysql -uroot -p      \\進入mysql編寫前，會需要輸入密碼，就是剛剛設的123456
 ```
-## 7.
-
+## 7.Registry做Push和Pull
+當網路不穩定且映像檔很大時，或者這資料太重要不想放在網上時，可以用這個方法。
+```
+\\先建好兩台虛擬機(L1,L2)
+\\L1
+#docker pull registry
+#docker run -d -p 5000:5000 --restart always --name registry registry:2    \\-d背景執行，--restart always虛擬機開機時此Docker也跟著開啟
+#docker tag httpd:latest 127.0.0.1:5000/httpd:latest        \\127.0.0.1:5000為本機port 5000取代原本上傳到網上的帳戶名稱
+#docker push 127.0.0.1:5000/httpd:latest    \\image push到127.0.0.1:5000，也就是registry那台上
+\\L1本地端的pull實作
+#docker rmi 127.0.0.1:5000/httpd:latest     \\先把127.0.0.1:5000/httpd:latest image刪除
+#docker images      \\確認是否刪除127.0.0.1:5000/httpd:latest
+#docker pull 127.0.0.1:5000/httpd:latest      \\再做pull的動作
+#docker images      \\確認是否pull到127.0.0.1:5000/httpd:latest
+\\先確認L1 IP位址 192.168.42.105(hostonly addr)
+\\L2先ping 192.168.42.105看是否連得到
+#gedit /etc/docker/daemon.json      \\設定/etc/docker/daemon.json
+\\輸入{"insecure-registries":["192.168.42.105:5000"]}，儲存
+#systemctl restart docker     \\重啟Docker
+#docker pull 192.168.42.105:5000/httpd:latest   \\這樣就可以pull下來了
+#docker images      \\確認是否pull到192.168.42.105:5000/httpd:latest
+\\也可從L2傳到L1
+#docker pull busybox
+#docker tag busybox:latest 192.168.42.105:5000/busybox:latest
+#docker push 192.168.42.105:5000/busybox:latest
+\\L1
+#gedit /etc/docker/daemon.json      \\設定/etc/docker/daemon.json
+\\輸入{"insecure-registries":["192.168.42.105:5000"]}，儲存
+#systemctl restart docker     \\重啟Docker
+#docker pull 192.168.42.105:5000/busybox:latest
+#docker images      \\確認是否pull到192.168.42.105:5000/busybox:latest
+#docker run -it 192.168.42.105:5000/busybox:latest sh   \\確認busybox可否運行
+\\busybox檔案雖小但有很完整的網路工具
+```
 Docker容器指令參考資料：[Docker Container 指令：Docker run & Docker exec](https://www.jinnsblog.com/2018/10/docker-container-command.html)
