@@ -61,4 +61,22 @@
 #cd /data
 #ls      \\會列出a b c d這些檔案出來
 ```
+## 6.傳值到容器系統內，用於MySQL建帳號密碼
+首先Linux系統上的值可以這樣設定。
+```
+#myname=mary      \\注意不要空格
+#echo $myname     \\輸出為mary
+#set | grep myname  \\輸出為myname=mary
+#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs -e myname=tom -e myage=15 lanceray86/test   \\用於docker把myname=tom,myage=15的值傳入
+#docker exec -it mywebserver bash    \\進入mywebserver
+#set | grep myname      \\輸出為myname=tom
+#set | grep myage      \\輸出為myage=15
+#exit     \\先離開等一下要導入MySQL
+#docker pull mysql 
+#docker run --name mydb -e MYSQL_ROOT_PASSWORD=123456 -d mysql    \\建mysql，並設root密碼為123456
+#docker exec -it mydb bash      \\進入mydb
+#mysql -uroot -p      \\進入mysql編寫前，會需要輸入密碼，就是剛剛設的123456
+```
+## 7.
+
 Docker容器指令參考資料：[Docker Container 指令：Docker run & Docker exec](https://www.jinnsblog.com/2018/10/docker-container-command.html)
