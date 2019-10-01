@@ -1,145 +1,114 @@
 # Docker
-Docker是一個容器管理軟體，他是一個推疊概念的容器，比如說你在CentOS下要裝Apache,MySQL,PHP，他會先有一層基底Docker，再來是CentOS疊在上面，再來是Apache，再來是MySQL，再來是PHP，這樣就疊出四個容器了。而他封裝後會變成Image，執行後才會變成容器。   
-## 1.Docker建置
-### 1.先更新你的機子
+## 1.登入Docker
 ```
-yum update
+#docker login
 ```
-### 2.再來下載最新Docker套件
+## 2.Docker image上傳並於另一機拿來用
+### 1.準備兩台有Docker的虛擬機(可用再製再開另一台)
 ```
-yum -y install docker
+\\虛擬機1
+#docker commit 345 test:01   \\容器轉Image，345容器代號，test:1 Image名稱
+#docker tag test:01 lanceray86/test:01   \\更改tag名稱
+#docker login   \\登入帳號
+#docker push lanceray86/test:01   \\上傳到你的帳號(帳號/Image名稱)
 ```
-### 3.啟動與開機自動啟動Docker
+### 2.執行下方指令前確認再製的虛擬機Docker有開啟
 ```
-systemctl start docker
-systemctl enable docker
+\\虛擬機2
+#docker pull lanceray86/test:01   \\拉Image
+#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs lanceray86/test    \\建mywebserver容器開port 8080:80
+\\開啟另一個terminal
+#cd /mydata
+#echo hi > hi.htm 
+#curl 127.0.0.1:8080/hi.htm
+\\這樣就可以看到上傳的Image可以在另一台機子上運行
 ```
-### 4.下載Image，並啟動
+## 3.兩台Docker對外以不同port，但網頁是一樣，因為共享相同資源
+延續用上述的虛擬機2。
 ```
-docker pull centos:latest
-docker run -it docker.io/centos:latest
+\\terminal1
+#docker run -itd --name mywebserver2 -p 8081:80 --volumes-from 458 lanceray86/test   \\再開一個一樣的容器，但這次開的port稍微不同
+\\   再開另一個terminal2
+#curl 127.0.0.1:8081/hi.htm    \\可以看到和curl 127.0.0.1:8080/hi.htm的輸出一樣，這是因為共用同一個同步資料夾/mydata(--volumes-from就是這個連結的主要指令)
+\\terminal1
+#docker exec -it mywebserver2 bash  \\進入mywebserver2容器
+#cd htdocs/      \\到http server資料夾
+#ls          \\查看有哪些網頁，應該只會看到在2-2建的hi.htm
+#echo hello > hello.htm   \\再建一個hello.htm，這是在mywebserver2容器建的
+\\terminal2
+#curl 127.0.0.1:8080/hello.htm      \\在另一個mywebserver容器也看得到mywebserver2容器建的hello.htm 
+#curl 127.0.0.1:8081/hello.htm      \\出現一樣的結果
 ```
-成功啟動的會@後面會出現亂數，如下圖：
->![image](https://github.com/LarrySu508/Linux_note/blob/master/Week3/rundocker.png)
-## 2.Docker的基本操作
-### 1.其他指令
+## 4.特定網卡IP顯示網頁
 ```
-docker images   //你本機中有的Image列出
-docker ps       //你目前所有容器清單
+\\先把剛剛虛擬機2的webserver容器移除掉
+#docker run -itd --name mywebserver -p 127.0.0.1:8080:80 -v /mydata:/usr/local/apache2/htdocs lanceray86/test     \\限定只有本地網卡IP127.0.0.1才能開啟網頁，如果用其他網卡IP則無法顯示
+\\另外開一個terminal
+#curl 127.0.0.1:8080/hi.htm    \\會顯示之前寫入的hi
+#curl 127.17.0.1:8080/hi.htm   \\如果你有另一張網卡IP為127.17.0.1，你用這IP連則無法顯示
 ```
-### 2.設定Docker名稱。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-1.png)
-### 3.用Docker名稱或ID開啟。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-2.png)
-### 4.關閉開啟的Docker。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-3.png)
-### 5.於Docker中顯示IP。
-#### 若有兩台Docker，請先在兩台上下載net-tools。
+## 5.Docker某些參數使用可以重複數次
+像上一節第四節的mywebserver掛載目錄為/mydata(虛擬機本身目錄):/usr/local/apache2/htdocs(容器目錄)，這裡在增加一個掛載目錄/mydata2(虛擬機本身目錄):/data(容器目錄)
 ```
-yum -y net-tools
+\\先把上一節的webserver容器移除掉
+#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs -v /mydata2:/data lanceray86/test
+#docker exec -it mywebserver bash
+\\開另一個terminal
+#cd /mydata2     \\虛擬機本身掛載目錄
+#touch {a..d}
+#ls      \\會列出a b c d這些檔案出來
+\\回去開啟mywebserver容器的terminal
+#cd /data
+#ls      \\會列出a b c d這些檔案出來
 ```
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-4.png)
-### 6.Docker刪除容器指令。
+## 6.傳值到容器系統內，用於MySQL建帳號密碼
+首先Linux系統上的值可以這樣設定。
 ```
-docker rm -f id(name)     //-f為強制執行
-docker rm -f $(docker ps -a -q)   //刪除ps中能看到的所有容器
-docker rmi id(name)
+#myname=mary      \\注意不要空格
+#echo $myname     \\輸出為mary
+#set | grep myname  \\輸出為myname=mary
+#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs -e myname=tom -e myage=15 lanceray86/test   \\用於docker把myname=tom,myage=15的值傳入
+#docker exec -it mywebserver bash    \\進入mywebserver
+#set | grep myname      \\輸出為myname=tom
+#set | grep myage      \\輸出為myage=15
+#exit     \\先離開等一下要導入MySQL
+#docker pull mysql 
+#docker run --name mydb -e MYSQL_ROOT_PASSWORD=123456 -d mysql    \\建mysql，並設root密碼為123456
+#docker exec -it mydb bash      \\進入mydb
+#mysql -uroot -p      \\進入mysql編寫前，會需要輸入密碼，就是剛剛設的123456
 ```
-### 7.Docker image上傳
-#### 1.先到Docker官網申請帳號。
-> [Docker.com](https://www.docker.com/)
-#### 2.容器匯出image。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-5.png)
-#### 3.更改標籤名稱(上傳才不會撞名稱)。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-6.png)
-#### 4.登入Docker，並push上去。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-7.png)
-#### 5.最後可在網站上看到你傳的image。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-8.png)
-## 3.Docker 開啟 httpd
-### 1.先把容器清空，接著載httpd:latest，再把httpd:latest映像開啟成容器。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/m.png)
-### 2.可直接開啟瀏覽器本地端查看，也可去根目錄mydata裡的aa.htm，再用瀏覽器去觀看。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/n.png)
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/o.png)
-### 3.有個指令很重要，你如果要看你開啟的Docker容器IP，請下下面指令：
+## 7.Registry做Push和Pull
+當網路不穩定且映像檔很大時，或者這資料太重要不想放在網上時，可以用這個方法。
 ```
-docker inspect 你Docker的ID或是你給容器的名稱
+\\先建好兩台虛擬機(L1,L2)
+\\L1
+#docker pull registry
+#docker run -d -p 5000:5000 --restart always --name registry registry:2    \\-d背景執行，--restart always虛擬機開機時此Docker也跟著開啟
+#docker tag httpd:latest 127.0.0.1:5000/httpd:latest        \\127.0.0.1:5000為本機port 5000取代原本上傳到網上的帳戶名稱
+#docker push 127.0.0.1:5000/httpd:latest    \\image push到127.0.0.1:5000，也就是registry那台上
+\\L1本地端的pull實作
+#docker rmi 127.0.0.1:5000/httpd:latest     \\先把127.0.0.1:5000/httpd:latest image刪除
+#docker images      \\確認是否刪除127.0.0.1:5000/httpd:latest
+#docker pull 127.0.0.1:5000/httpd:latest      \\再做pull的動作
+#docker images      \\確認是否pull到127.0.0.1:5000/httpd:latest
+\\先確認L1 IP位址 192.168.42.105(hostonly addr)
+\\L2先ping 192.168.42.105看是否連得到
+#gedit /etc/docker/daemon.json      \\設定/etc/docker/daemon.json
+\\輸入{"insecure-registries":["192.168.42.105:5000"]}，儲存
+#systemctl restart docker     \\重啟Docker
+#docker pull 192.168.42.105:5000/httpd:latest   \\這樣就可以pull下來了
+#docker images      \\確認是否pull到192.168.42.105:5000/httpd:latest
+\\也可從L2傳到L1
+#docker pull busybox
+#docker tag busybox:latest 192.168.42.105:5000/busybox:latest
+#docker push 192.168.42.105:5000/busybox:latest
+\\L1
+#gedit /etc/docker/daemon.json      \\設定/etc/docker/daemon.json
+\\輸入{"insecure-registries":["192.168.42.105:5000"]}，儲存
+#systemctl restart docker     \\重啟Docker
+#docker pull 192.168.42.105:5000/busybox:latest
+#docker images      \\確認是否pull到192.168.42.105:5000/busybox:latest
+#docker run -it 192.168.42.105:5000/busybox:latest sh   \\確認busybox可否運行
+\\busybox檔案雖小但有很完整的網路工具
 ```
-## 4.其他另類操作
-### 1.啟動可以附加指令
-```
-[root@lacalhost user]#docker run -it -d --name test1 chusiang/takaojs1607 /bin/sh -c "while true; do echo "hi"; sleep 1; done"
-[root@lacalhost user]#docker logs 338  //338為開啟機子代號。
-hi
-hi
-hi
-hi   //因為第一個指令有印hi的規則，所以會看到這些hi。
-```
-### 2.機子開啟後，如果做離開機子的動作，這機子就一起刪掉
-```
-[root@lacalhost user]#docker run -it --name test1 --rm chusiang/takaojs1607 /bin/sh
-```
-### 3.Docker機子與虛擬機共用資料夾
-#### 1.建一個檔案和資料夾在根目錄上
-```
-[root@lacalhost /]#mkdir /mydata
-[root@lacalhost /]#echo "hello world" > hello.txt
-[root@lacalhost /]#docker run -it -v /mydata:/data chusiang/takaojs1607 /bin/sh
-root@f63658996341:/# cd data
-root@f63658996341:/data# ls
-hi.txt
-root@f63658996341:/data# cat hi.txt 
-hello
-root@f63658996341:/data# touch {a..d}
-root@f63658996341:/data# ls
-a b c d hi.txt
-```
-```
-//另開一個terminal
-[root@lacalhost user]#cd /mydata
-[root@lacalhost mydata]#echo "hello" > hi.txt
-[root@lacalhost mydata]#ls
-hi.txt
-[root@lacalhost mydata]#ls
-a b c d hi.txt
-```
-### 4.當docker的機子在運行指令時，要在另一個終端機執行指令
-```
-//terminal1
-root@f63658996341:/data# /bin/bash -c "while true; do echo "hi"; sleep 3; done"
-hi
-hi
-hi
-hi
-```
-```
-//terminal2
-[root@lacalhost mydata]#docker exec -it f63 bash
-root@f63658996341:/#
-```
-### 5.快速離開容器
-按ctrl+p+q，就可快速離開容器。
-### 6.當下載的image很小時，執行容器時發生指令查不到
-可以直接查說像ping command not found，我用ubuntu的64.2M容器。    
-```
-[root@lacalhost /]#docker run -it ubuntu bash
-root@ccea9d4e9655:/# ping 8.8.8.8
-bash: ping: command not found
-root@ccea9d4e9655:/# apt-get updata
-root@ccea9d4e9655:/# apt-get install iputils-ping
-//這樣ping就可執行
-```
-如果是ifconfig找不到，可以下apt install net-tools。
-### 7.Docker httpd印出自己的網頁
-```
-#docker pull httpd  //先拉image
-#cd /mydata         //到mydata
-#echo "this is a index webpage" > index.html //這是預設的所以一定要有
-#echo "hi" > hi.htm   //個人設定的
-#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs httpd
-```
-開啟瀏覽器輸入127.0.0.1:8080，本地的8080埠號會出現index.html的內容。    
-輸入127.0.0.1:8080/hi.htm，會出現自己設的hi字樣。    
-如果要即時增加也是可以的，在mydata裡下echo "hello" > hello.htm，   
-開啟瀏覽器輸入127.0.0.1:8080/hello.htm，就會印出hello。
+Docker容器指令參考資料：[Docker Container 指令：Docker run & Docker exec](https://www.jinnsblog.com/2018/10/docker-container-command.html)
