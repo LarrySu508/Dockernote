@@ -1,4 +1,4 @@
-# Docker
+# 第一周
 Docker是一個容器管理軟體，他是一個推疊概念的容器，比如說你在CentOS下要裝Apache,MySQL,PHP，他會先有一層基底Docker，再來是CentOS疊在上面，再來是Apache，再來是MySQL，再來是PHP，這樣就疊出四個容器了。而他封裝後會變成Image，執行後才會變成容器。   
 ## 1.Docker建置
 ### 1.先更新你的機子

@@ -1,145 +1,106 @@
-# Docker
-Docker是一個容器管理軟體，他是一個推疊概念的容器，比如說你在CentOS下要裝Apache,MySQL,PHP，他會先有一層基底Docker，再來是CentOS疊在上面，再來是Apache，再來是MySQL，再來是PHP，這樣就疊出四個容器了。而他封裝後會變成Image，執行後才會變成容器。   
-## 1.Docker建置
-### 1.先更新你的機子
+# 第三周
+## 1.Docker Image做匯出匯入(不經由雲端傳送)
+先有兩台虛擬機(L1,L2)，本筆記用的是Linux Centos 7，網路記得設兩張一個是NAT，另一個為HostOnly，兩台都一樣。
+### 1.匯出動作
 ```
-yum update
+\\L1 Root模式
+#docker pull busybox     \\如果沒Images可拉這個，檔案小又有網路工具。
+#docker tag 192.168.42.56:5000/busybox:latest busybox:latest    \\如果你要用自己的檔案但名字太長，可以像這樣把192.168.42.56:5000/busybox:latest改成busybox:latest。
+#docker run -it busybox sh
+#mkdir -p /mydata
+#cd /mydata
+#touch {a..d}
+#ls     \\顯示{a..d}
+\\ctrl+p+q跳出container
+#docker ps
+#docker save busybox:latest > busybox_save.tar
+#docker export quizzical_almeida > busybox_export.tar      \\這兩行指令為備份用，quizzical_almeida為docker ps中運行busybox的names。
+#ls -al *.tar   \\列出剛剛包裝好的tar檔。
 ```
-### 2.再來下載最新Docker套件
+### 2.匯入動作
 ```
-yum -y install docker
+\\L2 Root模式
+#ifconfig       \\紀錄Localhost IP。
+#systemctl start sshd
+\\L1 Root模式
+#ping 192.168.56.106    \\ping L2看可否連線。
+#scp *.tar user@192.168.56.106:/home/user
+\\L2 Root模式
+#cd /home/user
+#ls     \\會看到busybox_save.tar,busybox_export.tar。
+#docker rmi busybox:latest     \\如果L2上有busybox:latest記得移除，才能匯入。
+#cat busybox_export.tar | docker import - busybox1     \\把busybox_export.tar輸出到busybox1。
+#docker images      \\確認是否有輸出busybox1。
+#docker load < busybox_save.tar
+#docker images      \\會輸出busybox:latest。
+#docker run -it busybox:latest sh      \\產生的container為原本busybox:latest的Image檔案。
+#ls     \\所以沒看到mydata。
+\\開另一個terminal進到Root模式。
+#docker run -it busybox1:latest sh      \\產生的container為剛剛匯出有建資料夾的Image檔案。
+#ls /mydata     \\所以會顯示{a..d}。
 ```
-### 3.啟動與開機自動啟動Docker
+> ### 如果網卡IP跑掉沒顯示，可以下  dhclient enp0s8 (enp0s8為網卡名稱)。
+## 2.兩個Container(C1,C2)互相連線
+首先開兩個terminal(t1,t2)。
 ```
-systemctl start docker
-systemctl enable docker
+\\t1 Root模式
+#docker run -it --name c1 --rm busybox sh
+/ #ifconfig         \\查C1的IP 172.17.0.2
+\\t2 Root模式
+#docker run -it --name c2 --rm busybox sh
+/ #ifconfig         \\查C2的IP 172.17.0.3
+\\t1 Container模式
+/ #ping 172.17.0.3  \\C1可以與C2連線
+\\t2 Container模式
+/ #ping 172.17.0.2  \\C2可以與C1連線
+\\但如果要讓C2直接下ping c1要再加東西
+\\t2 Container模式
+/ #exit
+#docker run -it --name c2 --rm --link c1 busybox sh    \\下這個指令前C1一定要開啟
+\\此指令是在Container的/etc/hosts裡加上172.17.0.2    c1  2cba578a90a，記錄C1的IP與代號
+/ #ping c1      \\現在測試就可以是成功的
 ```
-### 4.下載Image，並啟動
+## 3.Docker建立Apache php及Mariadb
+參考資料：[docker安裝apache、mariadb、php](https://blog.yslifes.com/archives/2523)
 ```
-docker pull centos:latest
-docker run -it docker.io/centos:latest
+#docker pull maridb
+#docker run -d --name mariadb -e MYSQL_ROOT_PASSWORD=123456 --restart unless-stopped mariadb
+#docker ps      \\檢查Mariadb Container是否有開啟
+#docker exec -it mariadb bash
+/#mysql -u root -p      \\登入database，輸入剛剛設的密碼123456
+>create database test;  \\建資料庫 test 
+>show databases;    \\確認是否建成功
+\\開另一個terminal
+#mkdir -p /opt/www-data
+#docker pull php:7.2-apache \\拉Apache php Image
+#docker run -d --name apache --restart unless-stopped -p 80:80 -v /opt/www-data:/var/www/html --link mariadb:mariadb php:7.2-apache  \\啟動
+#docker exec -it apache sh      \\連接
+#docker-php-ext-install mysqli  \\導入套件
+#docker-php-ext-enable mysqli
+#apachectl restart
+\\再開另一個terminal
+#cd /opt/www-data
+#gedit index.php       \\寫入以下內容，記得'mariadb', 'root', 'youpass', 'test'，分別要寫入'容器名稱','帳戶','密碼','資料庫名稱'
+<?php
+$db = new mysqli('mariadb', 'root', '123456', 'test');
+if (mysqli_connect_errno())
+{
+echo '<p>' . 'Connect DB error';
+exit;
+}
+else
+{
+echo "Connection success";
+}
+?>
+\\開瀏覽器輸入虛擬機IP就可以看到預設網頁。
+\\再開另一個terminal
+#cd /opt/www-data/
+#echo "hello world" > 123.htm 
+\\開瀏覽器輸入[虛擬機IP/123.htm]就可以看到hello world。
+#docker ps      \\查詢容器代號
+\\如果要在別台用現在設的狀態，要儲存Apache及database，把Apache及database存成Images。
+#docker commit 914 myphp:7.2-apache
+#docker commit fa3 mymariadb:latest     \\914,fa3為容器代號
 ```
-成功啟動的會@後面會出現亂數，如下圖：
->![image](https://github.com/LarrySu508/Linux_note/blob/master/Week3/rundocker.png)
-## 2.Docker的基本操作
-### 1.其他指令
-```
-docker images   //你本機中有的Image列出
-docker ps       //你目前所有容器清單
-```
-### 2.設定Docker名稱。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-1.png)
-### 3.用Docker名稱或ID開啟。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-2.png)
-### 4.關閉開啟的Docker。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-3.png)
-### 5.於Docker中顯示IP。
-#### 若有兩台Docker，請先在兩台上下載net-tools。
-```
-yum -y net-tools
-```
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-4.png)
-### 6.Docker刪除容器指令。
-```
-docker rm -f id(name)     //-f為強制執行
-docker rm -f $(docker ps -a -q)   //刪除ps中能看到的所有容器
-docker rmi id(name)
-```
-### 7.Docker image上傳
-#### 1.先到Docker官網申請帳號。
-> [Docker.com](https://www.docker.com/)
-#### 2.容器匯出image。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-5.png)
-#### 3.更改標籤名稱(上傳才不會撞名稱)。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-6.png)
-#### 4.登入Docker，並push上去。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-7.png)
-#### 5.最後可在網站上看到你傳的image。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week4/2-8.png)
-## 3.Docker 開啟 httpd
-### 1.先把容器清空，接著載httpd:latest，再把httpd:latest映像開啟成容器。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/m.png)
-### 2.可直接開啟瀏覽器本地端查看，也可去根目錄mydata裡的aa.htm，再用瀏覽器去觀看。
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/n.png)
-![image](https://github.com/LarrySu508/Linux_note/blob/master/Week5/o.png)
-### 3.有個指令很重要，你如果要看你開啟的Docker容器IP，請下下面指令：
-```
-docker inspect 你Docker的ID或是你給容器的名稱
-```
-## 4.其他另類操作
-### 1.啟動可以附加指令
-```
-[root@lacalhost user]#docker run -it -d --name test1 chusiang/takaojs1607 /bin/sh -c "while true; do echo "hi"; sleep 1; done"
-[root@lacalhost user]#docker logs 338  //338為開啟機子代號。
-hi
-hi
-hi
-hi   //因為第一個指令有印hi的規則，所以會看到這些hi。
-```
-### 2.機子開啟後，如果做離開機子的動作，這機子就一起刪掉
-```
-[root@lacalhost user]#docker run -it --name test1 --rm chusiang/takaojs1607 /bin/sh
-```
-### 3.Docker機子與虛擬機共用資料夾
-#### 1.建一個檔案和資料夾在根目錄上
-```
-[root@lacalhost /]#mkdir /mydata
-[root@lacalhost /]#echo "hello world" > hello.txt
-[root@lacalhost /]#docker run -it -v /mydata:/data chusiang/takaojs1607 /bin/sh
-root@f63658996341:/# cd data
-root@f63658996341:/data# ls
-hi.txt
-root@f63658996341:/data# cat hi.txt 
-hello
-root@f63658996341:/data# touch {a..d}
-root@f63658996341:/data# ls
-a b c d hi.txt
-```
-```
-//另開一個terminal
-[root@lacalhost user]#cd /mydata
-[root@lacalhost mydata]#echo "hello" > hi.txt
-[root@lacalhost mydata]#ls
-hi.txt
-[root@lacalhost mydata]#ls
-a b c d hi.txt
-```
-### 4.當docker的機子在運行指令時，要在另一個終端機執行指令
-```
-//terminal1
-root@f63658996341:/data# /bin/bash -c "while true; do echo "hi"; sleep 3; done"
-hi
-hi
-hi
-hi
-```
-```
-//terminal2
-[root@lacalhost mydata]#docker exec -it f63 bash
-root@f63658996341:/#
-```
-### 5.快速離開容器
-按ctrl+p+q，就可快速離開容器。
-### 6.當下載的image很小時，執行容器時發生指令查不到
-可以直接查說像ping command not found，我用ubuntu的64.2M容器。    
-```
-[root@lacalhost /]#docker run -it ubuntu bash
-root@ccea9d4e9655:/# ping 8.8.8.8
-bash: ping: command not found
-root@ccea9d4e9655:/# apt-get updata
-root@ccea9d4e9655:/# apt-get install iputils-ping
-//這樣ping就可執行
-```
-如果是ifconfig找不到，可以下apt install net-tools。
-### 7.Docker httpd印出自己的網頁
-```
-#docker pull httpd  //先拉image
-#cd /mydata         //到mydata
-#echo "this is a index webpage" > index.html //這是預設的所以一定要有
-#echo "hi" > hi.htm   //個人設定的
-#docker run -itd --name mywebserver -p 8080:80 -v /mydata:/usr/local/apache2/htdocs httpd
-```
-開啟瀏覽器輸入127.0.0.1:8080，本地的8080埠號會出現index.html的內容。    
-輸入127.0.0.1:8080/hi.htm，會出現自己設的hi字樣。    
-如果要即時增加也是可以的，在mydata裡下echo "hello" > hello.htm，   
-開啟瀏覽器輸入127.0.0.1:8080/hello.htm，就會印出hello。
+
