@@ -63,7 +63,7 @@
 ## 3.Docker建立Apache php及Mariadb
 參考資料：[docker安裝apache、mariadb、php](https://blog.yslifes.com/archives/2523)
 ```
-#docker pull maridb
+#docker pull mariadb
 #docker run -d --name mariadb -e MYSQL_ROOT_PASSWORD=123456 --restart unless-stopped mariadb
 #docker ps      \\檢查Mariadb Container是否有開啟
 #docker exec -it mariadb bash
