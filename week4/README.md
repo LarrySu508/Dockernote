@@ -78,3 +78,116 @@ brctl show意思為bridge control show，可看到interface開了兩個，如果
 #docker exec -it c1 ping -c 3 8.8.8.8    //成功
 #docker exec -it c1 ping -c 3 www.google.com    //成功
 ```
+### Docker network其他指令
+```
+//先把Container刪空
+#docker rm -f $(docker ps -a -q) 
+#docker network ?   //可查詢問號處可接的指令
+#docker network ls   //看到有哪些網路
+#docker network rm mynet    //刪除網路mynet
+#docker network connect ?  //可以查到問號要接[OPTIONS] 網路名稱 容器名稱
+#docker run -itd --name c5 --network host busybox sh    //設定host網路的Container
+#ifconfig | more   //確認自己虛擬機的Interface設定
+#docker exec -it c5 ip addr show   //確認Container的Interface設定
+//會發現Container的Interface設定和虛擬機的Interface設定是一樣的。
+#docker run -itd --name c6 --network none busybox sh    //設定none網路的Container
+#docker exec -it c6 ip addr show    //會發現Container的Interface幾乎沒有
+```
+## Docker image產生
+### 1.開啟的容器做匯出image。
+```
+#docker commit 692 test:01      //692為Container代號，test:01為repository:tag
+```
+### 2.Dockerfile(參考:[Docker – Dockerfile 指令教學，含範例解說](https://www.jinnsblog.com/2018/12/docker-dockerfile-guide.html))
+#### 1.指令介紹
+1."#"井字符號代表註解。       
+2.最一開頭，基底映像檔一定要有，指定映像檔要以哪一個Image為基底建置，格式為"FROM <image>"或"FROM <image>:<tag>"。     
+3.接著寫映像檔維護者，意思就是作者可寫可不寫，格式為"MAINTAINER <name>"。
+4.LABEL為設定映像檔的Metadata資訊，作者、EMail、映像檔的說明等，格式為：LABEL <key>=<value> <key>=<value> <key>=<value> …，可不寫。     
+5.RUN為執行指定的指令，格式為：     
+1."RUN <command>"    
+2."RUN ["executable", "param1", "param2"]"     
+6.ENV為設定環境變數。    
+7.WORKDIR為切換工作目錄。    
+8.COPY為複製本地端的檔案/目錄到映像檔的指定位置中。     
+9.EXPOSE為宣告在映像檔中預設要使用(對外)的連接埠。      
+10.CMD為設定映像檔啟動為Container時預設要執行的指令。     
+#### 2.編寫Dockerfile(docker hub上查看image，會發現有Dockerfile格式)
+##### 1.簡易練習    
+```
+#gedit Dockerfile &     //檔名一定要一樣
+//進入編輯文字檔
+FROM ubuntu:latest
+MAINTAINER larry larry4623@gmail.com
+RUN mkdir -p /home/demo/docker
+RUN apt-get update && apt-get install -y apache2
+//儲存
+#docker build -t myimage:v0.1 .     //執行建立Docker image
+#docker images      //查看是否有自己建的image
+#docker run -it --name c1 --rm myimage:v0.1 bash     //可以執行看看
+```
+##### 2.httpd練習
+```
+#gedit Dockerfile &
+//進入編輯文字檔
+FROM centos
+MAINTAINER larry larry4623@gmail.com
+RUN yum update -y
+RUN yum install -y httpd net-tools
+EXPOSE 80
+//儲存
+#docker build -t myimage:v0.2 .      //執行建立Docker image
+#docker run -it --name c1 -p 8080:80 myimage:v0.2 bash  //開啟Container(c1)
+//c1裡
+#/usr/sbin/httpd -f /etc/httpd/conf/httpd.conf      //伺服器啟動指令
+//開另一個terminal(t2)
+#docker inspect c1      //列出所有此Container的資訊
+#docker inspect c1 | grep IP    //列出所有c1有關ip的資訊
+//到剛剛有c1的terminal(t1)
+#cd /var/www/html
+#echo "hi" > hi.htm
+//回到t2
+#curl 127.0.0.1:8080/hi.htm     //結果會印出剛剛設的hi
+//t1
+#exit   //離開c1
+#echo "hello" > hello.htm
+#gedit Dockerfile &
+//進入編輯文字檔
+FROM centos
+MAINTAINER larry larry4623@gmail.com
+RUN yum update -y
+RUN yum install -y httpd net-tools
+COPY hello.htm /var/www/html
+EXPOSE 80
+//儲存
+#docker build -t myimage:v0.3 .      //執行建立Docker image
+#docker run -it -p 8080:80 myimage:v0.3 bash  //開啟Container
+//Container裡
+#cd /var/www/html
+#ls     //資料夾裡有剛剛拷貝的hello.htm
+#cat hello.htm      //印出hello
+#/usr/sbin/httpd -f /etc/httpd/conf/httpd.conf &    //伺服器啟動指令
+//到t2
+#curl 127.0.0.1:8080/hello.htm     //結果會印出hello
+```
+> ## Docker只有前景執行的概念，沒後景執行的概念，前景執行完Docker會自動關閉。
+```
+//沿用剛剛t1,t2(terminal 1,terminal 2)
+//先把Container刪空
+#docker rm -f $(docker ps -a -q) 
+//t1
+#gedit Dockerfile &
+//進入編輯文字檔
+FROM centos
+MAINTAINER larry larry4623@gmail.com
+RUN yum update -y
+RUN yum install -y httpd net-tools
+COPY hello.htm /var/www/html
+EXPOSE 80
+CMD [*/usr/sbin/httpd*,*-DFOREGROUND*]
+//儲存
+//t2
+#docker build -t myimage:v0.4 .
+#docker run -itd -p 8080:80 myimage:v0.4
+#curl 127.0.0.1:8080/hello.htm     //結果會印出hello
+```
