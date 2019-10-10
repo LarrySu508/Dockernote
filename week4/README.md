@@ -102,7 +102,7 @@ brctl show意思為bridge control show，可看到interface開了兩個，如果
 #### 1.指令介紹
 1."#"井字符號代表註解。       
 2.最一開頭，基底映像檔一定要有，指定映像檔要以哪一個Image為基底建置，格式為"FROM [image]"或"FROM [image]:[tag]"。     
-3.接著寫映像檔維護者，意思就是作者可寫可不寫，格式為"MAINTAINER [name]"。
+3.接著寫映像檔維護者，意思就是作者可寫可不寫，格式為"MAINTAINER [name]"。     
 4.LABEL為設定映像檔的Metadata資訊，作者、EMail、映像檔的說明等，格式為：LABEL [key]=[value] [key]=[value] [key]=[value] …，可不寫。     
 5.RUN為執行指定的指令，格式為：     
 * 1."RUN [command]"    
