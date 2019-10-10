@@ -31,9 +31,9 @@ brctl show意思為bridge control show，可看到interface開了兩個，如果
 #brctl -h       //-h為help的意思，可以看到brctl後可以接哪些指令。
 #docker network inspect bridge      //可看更完整的訊息，可看到bridge的subnet172.17.0.0/16,gateway172.17.0.1，c1,c2兩個Container的macaddress,ipv4address。
 ```
-此為概念圖。
-![image](https://github.com/LarrySu508/Dockernote/blob/master/week4/b.png)
-查看c1,c2的ip address，和ping看看連線狀態。
+此為概念圖。    
+![image](https://github.com/LarrySu508/Dockernote/blob/master/week4/b.png)      
+查看c1,c2的ip address，和ping看看連線狀態。     
 ```
 #docker exec -it c1 ip addr show    //c1 ip 172.17.0.2
 #docker exec -it c2 ip addr show    //c2 ip 172.17.0.3
@@ -54,7 +54,7 @@ brctl show意思為bridge control show，可看到interface開了兩個，如果
 #docker exec -it c3 ping -c 3 c4        //跟預設bridge網路不同，結果是成功的。
 ```
 ### 5.建下方的拓撲圖網路
-![image](https://github.com/LarrySu508/Dockernote/blob/master/week4/c.jpg)
+![image](https://github.com/LarrySu508/Dockernote/blob/master/week4/c.png)
 ```
 //先把Container刪空
 #docker rm -f $(docker ps -a -q) 
