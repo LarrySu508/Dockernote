@@ -3,7 +3,7 @@
 ![image](a.png)       
 ![image](b.png)       
 ### 介紹
-Kubernetes前身為Google Borg。Kubernetes與Docker有些相似有Master和一般工作節點，K8S跑內定設定masterru node是不會有任何動作，只有一般工作節點會有動作，於Master裡有一些重要節點：         
+Kubernetes前身為Google Borg。Kubernetes與Docker有些相似有Master和一般工作節點，K8S跑內定設定master node是不會有任何動作，只有一般工作節點會有動作，於Master裡有一些重要節點：         
 1. API Server(REST API)：所有的節點皆由此處做控制，兩種方式做控制，一種是使用者直接用文字命令對機子做控制，另一種是透過HTTP的方式(REST API)的方式連入並控制。      
 2. etcd(key-value DB,SSOT)：分散式資料儲存系統，主要存key-value，儲存、查詢時會到這區做動作。      
 3. Controller Manager(Controller Loops)：把指令送至Controller Manager，由Controller Manager去規劃，Controller Manager有很多元件，最常見的是deployment(佈署元件)，例如控制器要佈署三個副本，deployment就會呼叫kubelet set創造三個副本出來，如果有副本掛掉，kubelet set就會負責把掛掉的副本再建起來，維持副本數為三的狀態。     
